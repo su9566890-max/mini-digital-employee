@@ -99,9 +99,9 @@ def run_qa(cfg: dict, artifacts: dict):
     return records, all(r["passed"] for r in records)
 
 
-def write_qa_record(out_dir: str, state: dict) -> str:
-    path = os.path.join(out_dir, "检验记录.json")
-    payload = {
+def build_qa_record(state: dict) -> dict:
+    """构造检验记录正文（不含写盘，落盘交由 Storage 决定）。"""
+    return {
         "task_id": state["task_id"],
         "period": state["form"].get("period"),
         "qa_records": state["qa_records"],
@@ -109,8 +109,13 @@ def write_qa_record(out_dir: str, state: dict) -> str:
         "llm_rounds": state["llm_rounds"],
         "delivered_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+
+def write_qa_record(out_dir: str, state: dict) -> str:
+    path = os.path.join(out_dir, "检验记录.json")
+    os.makedirs(out_dir, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        json.dump(build_qa_record(state), f, ensure_ascii=False, indent=2)
     return path
 
 

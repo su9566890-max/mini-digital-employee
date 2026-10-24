@@ -5,11 +5,10 @@
 不交给模型决定；每个阶段结束后原子落盘 state.json，程序中断后可从断点恢复。
 """
 import os
-import json
-import shutil
 import time
 
-from .events import EventLog, load_state, save_state
+from .events import EventLog
+from .storage import DiskStorage
 from .tools import registry, ToolFailure
 from .llm import LLMError
 from .qa import run_qa
@@ -44,17 +43,25 @@ class IllegalTransition(Exception):
 
 
 class TaskRunner:
-    def __init__(self, workspace: str, cfg: dict, task_id: str):
+    """同一个任务的持久化执行器：先查流转表，再通过 Storage 后端落盘。
+
+    构造方式有两种，核心逻辑完全共用：
+
+    >>> TaskRunner(workspace, cfg, task_id)        # 本地 / Web 工单台，默认 DiskStorage
+    >>> TaskRunner.from_storage(storage, cfg)      # EdgeOne Makers 云端 Agent
+    """
+
+    def __init__(self, workspace: str, cfg: dict, task_id: str, storage=None):
         self.workspace = workspace
         self.cfg = cfg
         self.task_id = task_id
-        self.task_dir = os.path.join(workspace, "tasks", task_id)
-        os.makedirs(self.task_dir, exist_ok=True)
-        os.makedirs(os.path.join(self.task_dir, "charts"), exist_ok=True)
-        self.events = EventLog(self.task_dir)
-        self.state = load_state(self.task_dir)
-        if self.state is None:
-            self.state = {
+        # 持久化后端决定了「写到哪里」：本地磁盘 / 平台会话存储 / 内存
+        self.storage = storage or DiskStorage(workspace, task_id)
+        self.task_dir = self.storage.scratch()   # 工具需要的真实文件目录
+        self.events = EventLog(self.storage)
+        state = self.storage.load_state()
+        if state is None:
+            state = {
                 "task_id": task_id,
                 "stage": FORM_SUBMITTED,
                 "form": {},
@@ -67,11 +74,17 @@ class TaskRunner:
                 "pause_reason": "",
                 "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
             }
-            save_state(self.task_dir, self.state)
+            self.storage.save_state(state)
+        self.state = state
+
+    @classmethod
+    def from_storage(cls, storage, cfg: dict) -> "TaskRunner":
+        """在非磁盘环境（EdgeOne Makers 云端）挂载一个已存在的 Storage。"""
+        return cls(None, cfg, storage.task_id, storage=storage)
 
     # ---------- 基础 ----------
     def _save(self):
-        save_state(self.task_dir, self.state)
+        self.storage.save_state(self.state)
 
     def _transition(self, new_stage: str, reason: str = ""):
         cur = self.state["stage"]
@@ -208,14 +221,16 @@ class TaskRunner:
                 self.events.log(self.task_id, "LLM_ERROR", {"error": str(e)})
                 self._transition(SUSPENDED, "模型调用失败/超时，转人工处理")
                 return
-            out_path = os.path.join(self.task_dir, "weekly_report.docx")
+            out_path = self.storage.scratch("weekly_report.docx")
+            charts_dir = self.storage.scratch("charts")
+            os.makedirs(charts_dir, exist_ok=True)
             art = registry.call("generate_weekly_report", {
                 "period": form["period"],
                 "analysis": analysis,
                 "narrative": narrative,
                 "feedback": self.state.get("feedback", ""),
                 "out_path": out_path,
-                "charts_dir": os.path.join(self.task_dir, "charts"),
+                "charts_dir": charts_dir,
             }, task_id=self.task_id, events=self.events)
             self.state["artifacts"]["report"] = art["report"]
             self.state["artifacts"]["charts"] = art["charts"]
@@ -254,20 +269,12 @@ class TaskRunner:
         self._transition(SUSPENDED, "质检修正超出重试上限，转人工处理")
 
     def _deliver(self):
-        from .qa import write_qa_record
-        out_dir = os.path.join(self.workspace, "deliveries", self.task_id)
-        os.makedirs(out_dir, exist_ok=True)
-        report = self.state["artifacts"].get("report")
-        if report and os.path.exists(report):
-            shutil.copy(report, os.path.join(
-                out_dir, "%s_经营周报.docx" % self.state["form"].get("period", self.task_id)))
-        for src in self.state["artifacts"].get("charts", []):
-            if os.path.exists(src):
-                shutil.copy(src, out_dir)
-        self.state["artifacts"]["delivery_dir"] = out_dir
-        record_path = write_qa_record(out_dir, self.state)
-        self.state["artifacts"]["qa_record"] = record_path
-        shutil.copy(os.path.join(self.task_dir, "events.jsonl"),
-                    os.path.join(out_dir, "events.jsonl"))
-        self.events.log(self.task_id, "DELIVERED", {"dir": out_dir})
+        """交付动作只做一件事：把产物交给当前环境的 Storage 后端处理。
+
+        落到哪、以什么形式留存（本地目录 / 平台存储里的 base64）由后端决定，
+        状态机不关心，因此本地与云端共用这一段代码。
+        """
+        info = self.storage.deliver(self.state)
+        self.state["artifacts"].update(info)
+        self.events.log(self.task_id, "DELIVERED", {"delivery": info})
         self._save()
