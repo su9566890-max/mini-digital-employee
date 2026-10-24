@@ -80,17 +80,17 @@ def _quote_from_notes(notes: str, item: dict) -> str:
 class _RemoteLLM:
     mode = "remote"
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, api_key=None, base_url=None, model=None):
         try:
             from openai import OpenAI
         except ImportError as e:
             raise LLMError("未安装 openai 库，请 pip install openai 或留空 Key 使用 Mock 模式")
         m = cfg["model"]
-        api_key = os.environ.get(m.get("api_key_env", "EMPLOYEE_LLM_API_KEY"), "")
+        api_key = api_key or os.environ.get(m.get("api_key_env", "EMPLOYEE_LLM_API_KEY"), "")
         if not api_key:
             raise LLMError("未配置 API Key")
-        self.client = OpenAI(api_key=api_key, base_url=m.get("base_url"))
-        self.model = m.get("model")
+        self.client = OpenAI(api_key=api_key, base_url=base_url or m.get("base_url"))
+        self.model = model or m.get("model")
         self.temperature = m.get("temperature", 0.3)
         self.timeout = cfg["limits"]["max_llm_seconds"]
 
@@ -133,8 +133,29 @@ def _dump(obj):
     return json.dumps(obj, ensure_ascii=False)[:6000]
 
 
+def makers_gateway_overrides():
+    """部署在 EdgeOne Makers 时，平台会注入 AI Gateway 环境变量。
+
+    检测到就用平台网关（内置免费模型额度、无需自备 Key、Key 不落盘），
+    优先级高于配置文件里的 base_url / model。
+    """
+    base = os.environ.get("AI_GATEWAY_BASE_URL", "")
+    key = (os.environ.get("AI_GATEWAY_API_KEY", "")
+           or os.environ.get("MAKERS_MODELS_KEY", ""))
+    if not (base and key):
+        return None
+    return {"base_url": base, "api_key": key,
+            "model": os.environ.get("AI_GATEWAY_MODEL", "@makers/deepseek-v4-flash")}
+
+
 def build_llm(cfg: dict):
-    """优先真实模型；无 Key / 未安装依赖则自动降级 Mock，保证不中断流程。"""
+    """优先级：Makers AI 网关 > 配置文件里的真实接口 > Mock 兜底。"""
+    gw = makers_gateway_overrides()
+    if gw:
+        try:
+            return _RemoteLLM(cfg, **gw)
+        except Exception:
+            pass  # 网关配置异常时按普通模式再试，仍失败落 Mock
     try:
         return _RemoteLLM(cfg)
     except Exception:
