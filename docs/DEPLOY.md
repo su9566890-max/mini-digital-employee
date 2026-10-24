@@ -88,13 +88,32 @@ git push -u origin main
 
 ## 四、Makers 导入与部署
 
-1. 打开 https://edgeone.ai 并登录，进入 **Makers 控制台**；
-2. 选择 **导入 Git 仓库**（首次需授权 GitHub）；
-3. 选中刚推送的 `mini-digital-employee` 仓库，分支 `main`；
-4. 构建配置保持默认即可 —— 仓库根已有：
-   - `edgeone.json`（agents 目录与超时声明）
-   - `requirements.txt`（pandas / matplotlib / python-docx / openai 等，平台自动安装）
-5. 点击创建，等构建完成，拿到形如 `https://<project>.edgeone.app` 的线上 URL。
+> **控制台入口**：https://console.cloud.tencent.com/edgeone/makers
+> 本项目 ID：`makers-zg9ascyk2ymh`
+>
+> **产品背景**：EdgeOne Pages 已升级为 EdgeOne Makers，在原 Web 全栈能力之上
+> 新增 AI Agent 原生支持，**原有产品逻辑与功能保持不变** ——
+> 所以 `cloud-functions/` 的 Python WSGI 规范在腾讯云控制台同样适用。
+
+**方式 A：导入 Git 仓库（推荐，与飞书教程一致）**
+
+1. 进入项目 → 左侧 **构建部署** → **新建部署**；
+2. 代码来源选 **代码仓库**，首次需授权 GitHub；
+3. 选中 `su9566890-max/mini-digital-employee`，生产分支 `main`；
+4. 构建配置**保持默认** —— 仓库里已备好：
+   - `edgeone.json`（Agent 目录与超时声明）
+   - `cloud-functions/requirements.txt`（Flask / pandas / matplotlib / python-docx 等）
+   - `cloud-functions/_vendor/`（核心代码打包副本，因为官方不打包 `scripts/`、`tests/`）
+5. 点创建，等构建完成，拿到线上 URL。
+
+**方式 B：本地上传**
+
+进入项目 → **构建部署** → **新建部署** → 上传**整个项目文件夹** → **开始部署**。
+
+**部署后拿到链接**
+
+构建完成后点右上角 **「预览」** 生成带签名参数的完整链接（3 小时有效），
+然后访问 **`https://<域名>/zhoubao-web`** —— 网页工单台在这里。
 
 ## 五、线上验证
 
