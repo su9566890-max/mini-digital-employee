@@ -9,6 +9,7 @@
     python main.py status  <task_id>              查看状态/质检记录/事件
     python main.py tools                          查看工具清单与入参出参
     python main.py demo                           端到端演示（正常 + 退回 + 交付）
+    python main.py web   [--port 5000]            启动 Web 工单台（发起/流转/审核/补材料）
 """
 import argparse
 import json
@@ -101,6 +102,12 @@ def cmd_tools(args):
         print("[%s] %s：%s" % (mark, k, v))
 
 
+def cmd_web(args):
+    """启动 Web 工单台。浏览器打开 http://127.0.0.1:<port>"""
+    from web.webapp import run
+    run(ROOT, port=args.port, host=args.host)
+
+
 def cmd_init_data(args):
     from scripts.make_sample_data import build_all
     out = build_all(ROOT)
@@ -173,6 +180,8 @@ def main():
     p = sub.add_parser("tools"); p.set_defaults(func=cmd_tools)
     p = sub.add_parser("init-data"); p.set_defaults(func=cmd_init_data)
     p = sub.add_parser("demo"); p.set_defaults(func=cmd_demo)
+    p = sub.add_parser("web"); p.add_argument("--port", type=int, default=5000)
+    p.add_argument("--host", default="127.0.0.1"); p.set_defaults(func=cmd_web)
     args = ap.parse_args()
     if not getattr(args, "func", None):
         ap.print_help()

@@ -6,6 +6,9 @@ matplotlib>=3.8
 pyyaml>=6.0
 pytest>=8.0
 
+# Web 工单台（可选：python main.py web）
+flask>=3.0
+
 # 可选：接入真实模型（DeepSeek / 通义 / GLM 等 OpenAI 兼容接口）
 # openai>=1.30
 

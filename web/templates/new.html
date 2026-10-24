@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card">
+  <h2>发起新工单（结构化表单）</h2>
+  <form method="post" enctype="multipart/form-data">
+    <div class="field">
+      <label>任务 ID（留空则自动生成）</label>
+      <input type="text" name="task_id" placeholder="例如：44week">
+    </div>
+    <div class="field">
+      <label>统计周期 *</label>
+      <input type="text" name="period" required placeholder="例如：2026 年第 44 周">
+    </div>
+    <div class="field">
+      <label>发起人 *</label>
+      <input type="text" name="submitter" required placeholder="例如：张店长">
+    </div>
+    <div class="field">
+      <label>门店销售明细（Excel/CSV）</label>
+      <input type="file" name="sales_file" accept=".xlsx,.xls,.csv">
+    </div>
+    <div class="field">
+      <label>周会纪要（docx/txt）</label>
+      <input type="file" name="notes_file" accept=".docx,.txt">
+    </div>
+    <div class="rowline">
+      <button class="btn primary" type="submit">提交并立刻执行</button>
+      <a class="btn" href="{{ url_for('index') }}">返回</a>
+    </div>
+  </form>
+  <p class="muted" style="margin-top:14px">提交后系统会跑完「准入校验 → 执行 → 自动质检」，
+     直到需要人工介入（缺材料 / 待审核 / 异常暂停）才会停下来。<br>
+     故意只传一份材料，可以直接演示「缺材料暂停 → 补充后继续」。</p>
+</div>
+{% endblock %}

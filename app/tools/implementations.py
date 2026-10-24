@@ -6,8 +6,8 @@
 import os
 import json
 
-REQUIRED_FORM_FIELDS = ["period", "sales_file", "notes_file", "submitter"]
-REQUIRED_MATERIALS = ["sales_file", "notes_file"]
+REQUIRED_FORM_FIELDS = ["period", "submitter"]        # 空缺 → 表单不完整，任务直接判失败
+REQUIRED_MATERIALS = ["sales_file", "notes_file"]     # 空缺或文件不存在 → 缺材料，暂停待补
 
 ANOMALY_THRESHOLD = 0.40  # 偏离该店均值 ±40% 视为异常波动
 
@@ -18,7 +18,7 @@ def validate_form(form: dict) -> dict:
     missing_materials = []
     for key in REQUIRED_MATERIALS:
         p = (form or {}).get(key, "")
-        if p and not os.path.exists(p):
+        if not p or not os.path.exists(p):
             missing_materials.append(key)
     return {"missing_fields": missing_fields, "missing_materials": missing_materials}
 

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}任务 {{ task.task_id }} · 工单台{% endblock %}
+{% block body %}
+
+<div class="card">
+  <div class="rowline" style="justify-content:space-between">
+    <h2 style="margin:0">任务 {{ task.task_id }}</h2>
+    <a class="btn" href="{{ url_for('index') }}">返回列表</a>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <div class="kv"><div class="k">当前状态</div><div class="v"><span class="badge st-{{ task.stage }}">{{ task.stage }}</span></div></div>
+    <div class="kv"><div class="k">统计周期</div><div class="v">{{ task.form.period or '-' }}</div></div>
+    <div class="kv"><div class="k">发起人</div><div class="v">{{ task.form.submitter or '-' }}</div></div>
+    <div class="kv"><div class="k">模型调用轮次</div><div class="v">{{ task.llm_rounds }}</div></div>
+  </div>
+  {% if task.pause_reason %}
+    <div class="alert warn" style="margin-top:14px;margin-bottom:0">系统说明：{{ task.pause_reason }}</div>
+  {% endif %}
+</div>
+
+{# ---------- 操作区 ---------- #}
+<div class="card">
+  <h2>操作</h2>
+
+  {% if task.stage in ['FORM_SUBMITTED','ADMIT_CHECK','EXECUTING','AUTO_QA'] %}
+    <form method="post" action="{{ url_for('resume', task_id=task.task_id) }}">
+      <div class="rowline">
+        <button class="btn primary">继续推进</button>
+        <span class="muted">跑完下一阶段后自动停在需要人工介入的位置</span>
+      </div>
+    </form>
+
+  {% elif task.stage == 'PAUSED_MISSING' %}
+    <div class="alert warn">材料缺失，任务已暂停。补充后可继续执行。</div>
+    <form method="post" action="{{ url_for('add_material', task_id=task.task_id) }}" enctype="multipart/form-data">
+      <div class="field">
+        <label>补充材料类型</label>
+        <select name="key">
+          <option value="sales_file">门店销售明细</option>
+          <option value="notes_file">周会纪要</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>选择文件</label>
+        <input type="file" name="file" required>
+      </div>
+      <button class="btn primary">上传并继续</button>
+    </form>
+
+  {% elif task.stage == 'HUMAN_REVIEW' %}
+    <form method="post" action="{{ url_for('review', task_id=task.task_id) }}">
+      <div class="field">
+        <label>审核意见（退回时必填，将作为采纳意见写入重做）</label>
+        <textarea name="comment" placeholder="例如：结论段落偏少，请补充针对低增长门店的具体动作"></textarea>
+      </div>
+      <div class="rowline">
+        <button class="btn primary" name="action" value="approve">审核通过 → 交付</button>
+        <button class="btn danger" name="action" value="reject">退回修改</button>
+        {% if report_url %}<a class="btn" href="{{ report_url }}">下载周报</a>{% endif %}
+      </div>
+    </form>
+
+  {% elif task.stage == 'SUSPENDED' %}
+    <div class="alert err">任务已暂停转人工：{{ task.pause_reason }}</div>
+    <form method="post" action="{{ url_for('resume', task_id=task.task_id) }}">
+      <button class="btn primary">人工处理后恢复执行</button>
+    </form>
+
+  {% elif task.stage == 'DELIVERED' %}
+    <div class="alert ok">已交付，成果目录：{{ task.artifacts.delivery_dir }}</div>
+    <div class="rowline">
+      {% if report_url %}<a class="btn primary" href="{{ report_url }}">下载最终周报</a>{% endif %}
+      {% for c in charts %}<a class="btn" href="{{ url_for('serve_file', task_id=task.task_id, name=c) }}">{{ c }}</a>{% endfor %}
+      <a class="btn" href="{{ url_for('serve_file', task_id=task.task_id, name='__delivery__events.jsonl') }}">事件日志</a>
+    </div>
+
+  {% elif task.stage == 'FAILED' %}
+    <div class="alert err">任务被拒绝（终态）：{{ task.pause_reason }}</div>
+  {% endif %}
+</div>
+
+{# ---------- 质检记录 ---------- #}
+<div class="card">
+  <h2>自动质检</h2>
+  {% if task.qa_records %}
+    <table>
+      <thead><tr><th>检查项</th><th>说明</th><th>结果</th><th>明细</th></tr></thead>
+      <tbody>
+      {% for r in task.qa_records %}
+        <tr>
+          <td>{{ r.name }}</td><td class="muted">{{ r.desc }}</td>
+          <td class="{{ 'pass' if r.passed else 'fail' }}">{{ '通过' if r.passed else '不通过' }}</td>
+          <td>{{ r.detail }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">尚未产出质检记录</div>
+  {% endif %}
+</div>
+
+{# ---------- 事件流 ---------- #}
+<div class="card">
+  <h2>事件流（最近 {{ events|length }} 条）</h2>
+  {% if events %}
+  <ul class="timeline">
+    {% for e in events %}
+    <li>
+      <div class="t">{{ e.ts }} · {{ e.type }}</div>
+      <div class="d">{{ e.render }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <div class="empty">暂无事件</div>
+  {% endif %}
+</div>
+
+{% endblock %}
