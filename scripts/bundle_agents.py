@@ -30,7 +30,11 @@ TARGETS = (
 )
 
 COPIED = ("app", "config", "assets")
-IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "_selftest.png")
+# mcp_server.py 仅供本地 MCP 通道使用，云端不部署：
+# 它 import fastmcp，会被平台的自动依赖扫描发现并强制安装，
+# 而 fastmcp 不在云端 requirements 里 → 构建失败 → 整站 404（已踩过此坑）。
+IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "_selftest.png",
+                                "mcp_server.py")
 
 
 def main():

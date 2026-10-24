@@ -1,5 +1,9 @@
 # 云端云函数依赖（EdgeOne Makers 构建时自动安装）
 # 该文件优先级高于仓库根目录的 requirements.txt
+#
+# 注意：只列必需依赖。平台会自动扫描 cloud-functions 下所有 .py 的 import
+# 语句并强制安装对应包，缺失即构建失败。openai 属远程模型可选依赖（llm.py
+# 内 try-import），Mock 模式不需要，故不列入，避免无谓的构建失败。
 
 flask>=2.0.0
 pandas>=2.0.0
@@ -7,6 +11,3 @@ openpyxl>=3.1.0
 python-docx>=1.1.0
 matplotlib>=3.7.0
 pyyaml>=6.0
-
-# 真实模型（可选）：配置 AI Gateway 环境变量后生效，未配置则降级 Mock
-openai>=1.30.0
