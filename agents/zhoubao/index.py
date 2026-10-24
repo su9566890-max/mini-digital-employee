@@ -107,6 +107,49 @@ def _save_material(st: MakersStorage, key: str, b64: str, name: str) -> str:
     return p
 
 
+_HELP = {
+    "service": "迷你数字员工 · 经营周报员工",
+    "version": "0.1.0",
+    "protocol": "HTTP POST /zhoubao；请求头必须带 Makers-Conversation-Id（6-36 位）",
+    "flow": ["FORM_SUBMITTED", "ADMIT_CHECK", "EXECUTING", "AUTO_QA",
+             "HUMAN_REVIEW", "DELIVERED"],
+    "flow_note": "另有 PAUSED_MISSING（缺材料暂停待补）、SUSPENDED（异常转人工）、FAILED（终态）",
+    "actions": {
+        "submit": "发起任务，需 period/submitter/sales_file(base64)/notes_file(base64)",
+        "add_material": "补充材料，需 key=sales_file|notes_file 与 content(base64)",
+        "resume": "从断点/暂停继续推进",
+        "review": "人工审核，需 decision=approve|reject（reject 必带 comment）",
+        "status": "查询当前状态（默认动作）",
+    },
+    "curl_example": (
+        "curl -X POST https://<your-app>.edgeone.app/zhoubao "
+        "-H \"Makers-Conversation-Id: conv_demo_001\" "
+        "-H \"Content-Type: application/json\" "
+        "-d '{\"action\":\"submit\",\"task_id\":\"zb_001\","
+        "\"period\":\"2026 年第 44 周\",\"submitter\":\"张店长\","
+        "\"sales_name\":\"销售明细.xlsx\",\"sales_file\":\"<base64>\","
+        "\"notes_name\":\"周会纪要.docx\",\"notes_file\":\"<base64>\"}'"
+    ),
+    "tips": [
+        "浏览器只能发 GET，无法调用本接口 —— 请用 curl / Postman 发 POST",
+        "断点恢复：换请求时带同一个 Makers-Conversation-Id 即可跨实例恢复",
+        "未配置 AI Gateway 环境变量时自动降级 Mock 模式，流程仍可跑通",
+    ],
+}
+
+
+def _method(context) -> str:
+    """取请求方法（平台 context 形态可能有差异，取不到按 POST 处理）。"""
+    req = getattr(context, "request", None)
+    if req is None:
+        return "POST"
+    for attr in ("method", "http_method"):
+        v = getattr(req, attr, None)
+        if v:
+            return str(v).upper()
+    return "POST"
+
+
 def _resp(payload: dict, status: int = 200):
     """与 EdgeOne Agent 运行时对齐的响应信封（与官方模板一致）：
     200 直接返回 dict；非 200 用 {"status_code", "body"} 包装。
@@ -126,6 +169,10 @@ async def handler(context):
     if isinstance(env, dict):
         for k, v in env.items():
             os.environ.setdefault(str(k), str(v))
+
+    # 浏览器直接打开（GET）时返回接口说明，而不是让用户面对一个空白 404
+    if _method(context) == "GET":
+        return _resp(dict(_HELP, hint="这是接口说明；请用 POST 调用本地址"))
 
     body = _body(context)
     action = (body.get("action") or "status").strip().lower()
