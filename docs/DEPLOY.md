@@ -29,19 +29,43 @@ C:\Users\lenovo\.workbuddy\binaries\python\envs\default\Scripts\python.exe scrip
 
 ## 三、推送到 GitHub
 
+账号：**`su9566890`**（GitHub），邮箱 `su9566890@gmail.com`。
+20 次提交的作者信息已统一改写为该身份，无需再处理。
+
+**第 1 步：在 GitHub 上建空仓库**
+
+打开 https://github.com/new ，填：
+
+- Repository name：`mini-digital-employee`
+- 选 **Public**（Makers 导入私有仓库需要额外授权，公有最省事）
+- **不要**勾选 Add a README file / .gitignore / license（仓库里已经有了）
+
+**第 2 步：关联并推送**（任选一种认证方式）
+
 ```bash
 cd E:\新建文件夹\mini-digital-employee
+git branch -M main                 # 本地当前是 master，统一改名为 main
 
-# 1. 在 GitHub 网页上新建一个空仓库（不要勾选 README/.gitignore），记下地址
-#    例如：https://github.com/<你的用户名>/mini-digital-employee.git
-
-# 2. 关联远端并推送
-git remote add origin https://github.com/<你的用户名>/mini-digital-employee.git
+# 方式 A：HTTPS + 浏览器登录（最简单）
+git remote add origin https://github.com/su9566890/mini-digital-employee.git
 git push -u origin main
+
+# 方式 B：GitHub CLI（装了 gh 的话）
+# gh auth login
+# gh repo create mini-digital-employee --public --source=. --remote=origin --push
+
+# 方式 C：SSH（配过 key 的话）
+# git remote add origin git@github.com:su9566890/mini-digital-employee.git
+# git push -u origin main
 ```
 
-> 提交身份目前是仓库局部的 `lenovo <lenovo@users.noreply.github.com>`，
-> 若 GitHub 用户名不同，先改掉再推（改法见本手册第七节）。
+> **认证提示**：方式 A 会弹 GitHub 登录窗口。若之前没登录过，GitHub 现在要求用
+> **Personal Access Token** 作为密码（密码登录已停用）：
+> GitHub 头像 → Settings → Developer settings → Personal access tokens → Tokens (classic)
+> → Generate new token → 勾选 `repo` → 生成后**当作密码粘贴**。
+
+> 若推送时报 `! [rejected] main -> main (fetch first)`，说明建仓库时勾了 README，
+> 先 `git pull origin main --rebase` 再 `git push -u origin main`。
 
 ## 四、Makers 导入与部署
 
@@ -121,12 +145,18 @@ edgeone makers dev         # 本地 8088 起服务，/agent-metrics 看调用链
 正常部署时应为 `"ok"`；若持续 degraded，检查项目是否为 Agents 类型项目。
 
 **Q5：提交身份要改？**
+已改为 `su9566890 <su9566890@gmail.com>`（仓库局部配置，未动全局 git config）。
+若日后要换成 noreply 邮箱（隐藏真实邮箱）：
+
 ```bash
-git config user.name "<你的GitHub用户名>"
-git config user.email "<你的GitHub用户名>@users.noreply.github.com"
-git commit --amend --reset-author --no-edit   # 只改最近一次；历史批量改用 rebase
-git push -f origin main                        # 仓库尚无协作者时 force 是安全的
+git config user.name "su9566890"
+git config user.email "su9566890@users.noreply.github.com"
+GIT_COMMITTER_NAME="su9566890" GIT_COMMITTER_EMAIL="su9566890@users.noreply.github.com" \
+  git rebase --root --exec 'git commit --amend --reset-author --no-edit --allow-empty'
+git push -f origin main      # 仓库尚无协作者时 force 是安全的
 ```
+
+> 已在改写前建了备份分支 `backup-before-reauthor`，改坏了可 `git reset --hard backup-before-reauthor` 回退。
 
 ## 八、如实说明：未经真实部署验证的部分
 
