@@ -50,7 +50,6 @@ python main.py init-data                                       # 生成模拟数
 mini-digital-employee/
 ├─ main.py                       命令行入口（submit/resume/review/status/tools/demo/web）
 ├─ requirements.txt
-├─ edgeone.json                  EdgeOne Makers 部署声明（agents 目录与超时）
 ├─ config/employee_zhoubao.yaml  员工能力配置（职责/步骤/上限/工具白名单/质检规则）
 ├─ app/
 │  ├─ state.py                   状态机：流转控制、断点恢复、超限暂停
@@ -62,20 +61,22 @@ mini-digital-employee/
 │  └─ tools/
 │     ├─ __init__.py             工具注册表：白名单/重试/越权拒绝/留痕
 │     └─ implementations.py      工具实现（5 个）
-├─ agents/
-│  ├─ zhoubao/index.py           EdgeOne Makers 云端入口（POST /zhoubao）
+├─ cloud-functions/
+│  ├─ zhoubao-web/index.py       云端网页工单台 Flask 入口（GET /zhoubao-web）
+│  ├─ requirements.txt           云端依赖（优先于根目录）
 │  └─ _vendor/                   核心代码打包副本（scripts/bundle_agents.py 同步）
+├─ agent_source/                 早期 Agent 版入口（保留参考，不再部署）
 ├─ assets/fonts/                 自带中文字体（Noto Sans CJK SC 子集，OFL 许可）
 ├─ scripts/
 │  ├─ make_sample_data.py        生成模拟业务数据
-│  ├─ bundle_agents.py           同步核心代码进 agents/_vendor
+│  ├─ bundle_agents.py           同步核心代码进 agents/_vendor 与 cloud-functions/_vendor
 │  ├─ web_smoke.py               Web 工单台端到端冒烟（8 步）
 │  └─ show_report.py             打印最新交付周报正文
 ├─ docs/DEPLOY.md                上线手册（Git 推送路线，逐条命令）
 ├─ sample_data/                  模拟数据（无隐私、无真实商业信息）
 ├─ tasks/<task_id>/              任务运行态：state.json + events.jsonl + 图表
 ├─ deliveries/<task_id>/         交付成果：周报 + 图表 + 检验记录 + 事件日志
-└─ tests/                        19 条自测用例（test_all.py 14 条 + test_storage.py 5 条）
+└─ tests/                        24 条自测用例（test_all 14 + test_storage 5 + test_cloud_function 5）
 ```
 
 **一份代码，两地运行**：`TaskRunner` 只依赖 `storage.py` 的同步接口 ——
@@ -177,7 +178,7 @@ python main.py web --port 8080
 
 ---
 
-## 八、自测用例（19 条，全部通过）
+## 八、自测用例（24 条，全部通过）
 
 ```bash
 python -m pytest tests -q
@@ -204,15 +205,19 @@ python -m pytest tests -q
 
 ## 九、部署上线（EdgeOne Makers，Git 推送路线）
 
-**已完成部署物料**，上线只需三步（详见 [docs/DEPLOY.md](docs/DEPLOY.md) 逐条命令）：
+云端采用**纯 Web 运行时**（`cloud-functions/zhoubao-web`），浏览器可直接打开。
+**注意**：`agents/` 与 `cloud-functions/` 不能共存于同一部署分支，否则平台构建时
+运行时冲突 → 部署失败 → 整站 404。早期 Agent 版入口已改名为 `agent_source/` 保留。
+
+上线三步（详见 [docs/DEPLOY.md](docs/DEPLOY.md) 逐条命令）：
 
 1. `git push` 到 GitHub（需要你的账号）；
-2. Makers 控制台导入该仓库，自动构建部署，拿到 `https://<project>.edgeone.app`；
-3. 带 `Makers-Conversation-Id` 请求头 `POST /zhoubao` 即可发起任务，
+2. Makers 控制台导入该仓库，自动构建部署，拿到线上 URL；
+3. 浏览器打开 `https://<域名>/zhoubao-web` 即可使用。
    模型走平台 AI Gateway（环境变量三件套，不设则自动落 Mock）。
 
-云端与本地共用同一状态机：任务状态落在平台 `context.store`（官方唯一支持
-Python 的持久化手段），事件流落在同一会话的消息历史 —— **断点恢复在线上真实成立**。
+云端与本地共用同一状态机；Serverless 无持久化，故网页版采用**无状态同步模式**：
+状态与材料打包成 blob 随表单回传，产物内联进页面点击下载。
 
 
 ---
