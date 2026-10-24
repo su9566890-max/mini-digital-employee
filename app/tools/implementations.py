@@ -124,17 +124,61 @@ def analyze_sales(sales: dict) -> dict:
 
 
 # ---------------- 5. 生成经营周报（Word + 图表） ----------------
+BUNDLED_FONT = "NotoSansSC-subset.otf"
+
+
+def _find_bundled_font():
+    """找仓库自带的开源中文字体（Noto Sans CJK SC 子集，OFL 许可）。
+
+    为什么必须自带：Linux 容器 / EdgeOne Makers 云函数里通常没有中文字体，
+    matplotlib 会静默回退到不含汉字的默认字体，图表里的中文标签变成方块。
+    自带字体可以让本地和云端渲染效果完全一致。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = here
+    for _ in range(5):
+        root = os.path.dirname(root)
+        if not root:
+            break
+        for base in (root, os.path.join(root, "_vendor")):
+            p = os.path.join(base, "assets", "fonts", BUNDLED_FONT)
+            if os.path.exists(p) and os.path.getsize(p) > 1024 * 512:
+                return p
+    return None
+
+
 def _set_chinese_font():
     import matplotlib
     from matplotlib import font_manager
-    for f in ["Microsoft YaHei", "SimHei", "Noto Sans CJK SC"]:
+
+    bundled = _find_bundled_font()
+    if bundled:
+        # 自带字体优先：注册进 matplotlib 字体库，本地与云端表现一致
         try:
-            font_manager.findfont(font_manager.FontProperties(family=f), fallback_to_default=False)
+            font_manager.fontManager.addfont(bundled)
+            name = font_manager.FontProperties(fname=bundled).get_name()
+            fallback = list(matplotlib.rcParams["font.sans-serif"] or [])
+            matplotlib.rcParams["font.family"] = "sans-serif"
+            matplotlib.rcParams["font.sans-serif"] = [name] + fallback
+            matplotlib.rcParams["axes.unicode_minus"] = False
+            return name
+        except Exception:
+            # 不吞没原因：注册失败时继续尝试系统字体，但失败原因要能查到
+            import warnings
+            warnings.warn("自带中文字体注册失败，回退系统字体：%s" % bundled)
+
+    for f in ["Microsoft YaHei", "SimHei", "Noto Sans CJK SC",
+              "Source Han Sans SC", "WenQuanYi Zen Hei", "Noto Sans SC",
+              "Arial Unicode MS"]:
+        try:
+            font_manager.findfont(font_manager.FontProperties(family=f),
+                                  fallback_to_default=False)
             matplotlib.rcParams["font.sans-serif"] = [f]
             break
         except Exception:
             continue
     matplotlib.rcParams["axes.unicode_minus"] = False
+    return None
 
 
 def _make_charts(analysis: dict, charts_dir: str):
