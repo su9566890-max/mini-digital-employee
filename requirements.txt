@@ -9,8 +9,9 @@ pytest>=8.0
 # Web 工单台（可选：python main.py web）
 flask>=3.0
 
-# 可选：接入真实模型（DeepSeek / 通义 / GLM 等 OpenAI 兼容接口）
-# openai>=1.30
+# 真实模型（OpenAI 兼容接口）。云端部署到 EdgeOne Makers 时
+# 由平台 AI Gateway 提供模型，也需要本库；本地不配 Key 自动落 Mock。
+openai>=1.30
 
 # 可选：启用 MCP 工具通道
 # fastmcp>=2.0
