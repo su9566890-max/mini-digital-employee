@@ -98,6 +98,32 @@ git push -u origin main
 
 ## 五、线上验证
 
+### ⚠ 先过这一关：裸域名一定打不开，别再刷了
+
+`*.edgeone.cool` / `*.edgeone.dev` 这类**部署域名**自带预览鉴权，**直接粘贴域名访问必然失败**：
+
+| 现象 | 真实原因 |
+|---|---|
+| `401 UNAUTHORIZED` + 响应头 `X-EOP-MSG: eo_time missing` | 链接缺签名参数 `eo_token` / `eo_time` |
+| `404 NOT_FOUND` The site does not exist | 该部署已失效（push 触发新部署后旧域名作废） |
+| 加速区域设为「全球（**不含**中国大陆）」 | 中国大陆网络**永远 401**，与链接无关 |
+
+**正确访问方式**：控制台 → 项目概览 → 右上角点 **「预览」** → 复制生成的**完整链接**（含 `?eo_token=...&eo_time=...`）访问。
+该链接 **有效期 3 小时**，过期再点一次「预览」即可。
+
+**答辩/长期使用请绑定自定义域名**（不受 3 小时限制、无需签名参数，全球可用区免备案）。
+
+### 命令行验证（一键脚本）
+
+```bash
+python scripts/verify_online.py --url "https://<your-app>.edgeone.cool/?eo_token=xxx&eo_time=yyy"
+```
+
+脚本会自动把链接上的鉴权参数转成 Cookie 携带，依次验证：
+探活 → 发起任务（自动上传示例材料 base64）→ 查询 → 审核通过 → 校验交付产物可还原。
+
+### 手动 curl
+
 请求头必须带 `Makers-Conversation-Id`（6–36 位，字母数字 `-_ .`），否则平台直接 400。
 
 ```bash
