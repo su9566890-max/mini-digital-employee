@@ -98,7 +98,27 @@ git push -u origin main
 
 ## 五、线上验证
 
-### ⚠ 先过这一关：裸域名一定打不开，别再刷了
+### 🎯 先记住：网页入口是 `<域名>/zhoubao-web`，不是根路径
+
+本项目部署后有**两个入口**，别再打开根路径了：
+
+| 入口 | 用途 | 怎么用 |
+|---|---|---|
+| **`https://<域名>/zhoubao-web`** | **网页工单台（给浏览器打开的）** | 浏览器直接访问，有表单、状态徽章、质检表、图表预览、审核按钮、下载按钮 |
+| `https://<域名>/zhoubao` | Agent API（程序调用） | 必须 `POST` + 带 `Makers-Conversation-Id` 头，浏览器打不开 |
+
+文件与路由的对应关系（平台按目录自动映射）：
+
+```
+agents/zhoubao/index.py            →  /zhoubao        （Agent API）
+cloud-functions/zhoubao-web/index.py →  /zhoubao-web   （Flask 网页）
+```
+
+> **如果控制台只允许一个运行时**（agents 与 cloud-functions 二选一）：
+> 网页版是完全自包含的（`cloud-functions/_vendor` 里有全部依赖），
+> 直接**再建一个 Makers 项目**关联同一个仓库即可，两个入口都能用。
+
+### ⚠ 第二关：裸域名一定打不开，别再刷了
 
 `*.edgeone.cool` / `*.edgeone.dev` 这类**部署域名**自带预览鉴权，**直接粘贴域名访问必然失败**：
 

@@ -1,0 +1,12 @@
+# 云端云函数依赖（EdgeOne Makers 构建时自动安装）
+# 该文件优先级高于仓库根目录的 requirements.txt
+
+flask>=2.0.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+python-docx>=1.1.0
+matplotlib>=3.7.0
+pyyaml>=6.0
+
+# 真实模型（可选）：配置 AI Gateway 环境变量后生效，未配置则降级 Mock
+openai>=1.30.0

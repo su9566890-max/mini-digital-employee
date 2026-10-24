@@ -176,10 +176,13 @@ class MemoryStorage(Storage):
 
     persistent_dir = False
 
-    def __init__(self, task_id: str, scratch_root: str = None):
+    def __init__(self, task_id: str, scratch_root: str = None,
+                 initial_state: dict = None, initial_events: list = None):
         super().__init__(task_id)
-        self._state = None
-        self._events = []
+        # initial_state / initial_events 用于「从快照恢复」：云端一个请求内跑完，
+        # 跨请求时把状态序列化回传，下一个实例据此还原到上次停下的位置。
+        self._state = initial_state
+        self._events = list(initial_events or [])
         self._scratch = os.path.join(scratch_root or tempfile.mkdtemp(prefix="mde_"),
                                      task_id)
         os.makedirs(self._scratch, exist_ok=True)
