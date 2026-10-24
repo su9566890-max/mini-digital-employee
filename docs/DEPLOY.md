@@ -29,7 +29,8 @@ C:\Users\lenovo\.workbuddy\binaries\python\envs\default\Scripts\python.exe scrip
 
 ## 三、推送到 GitHub
 
-账号：**`su9566890`**（GitHub），邮箱 `su9566890@gmail.com`。
+账号：**`su9566890-max`**（GitHub，已核实存在；此前误记为 su9566890，该用户名不存在），
+提交邮箱 `su9566890@gmail.com`。
 20 次提交的作者信息已统一改写为该身份，无需再处理。
 
 **第 1 步：在 GitHub 上建空仓库**
@@ -47,7 +48,7 @@ cd E:\新建文件夹\mini-digital-employee
 git branch -M main                 # 本地当前是 master，统一改名为 main
 
 # 方式 A：HTTPS + 浏览器登录（最简单）
-git remote add origin https://github.com/su9566890/mini-digital-employee.git
+git remote add origin https://github.com/su9566890-max/mini-digital-employee.git
 git push -u origin main
 
 # 方式 B：GitHub CLI（装了 gh 的话）
@@ -55,7 +56,7 @@ git push -u origin main
 # gh repo create mini-digital-employee --public --source=. --remote=origin --push
 
 # 方式 C：SSH（配过 key 的话）
-# git remote add origin git@github.com:su9566890/mini-digital-employee.git
+# git remote add origin git@github.com:su9566890-max/mini-digital-employee.git
 # git push -u origin main
 ```
 
