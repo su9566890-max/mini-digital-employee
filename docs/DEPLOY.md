@@ -41,7 +41,25 @@ C:\Users\lenovo\.workbuddy\binaries\python\envs\default\Scripts\python.exe scrip
 - 选 **Public**（Makers 导入私有仓库需要额外授权，公有最省事）
 - **不要**勾选 Add a README file / .gitignore / license（仓库里已经有了）
 
-**第 2 步：关联并推送**（任选一种认证方式）
+**第 2 步：推送**（两种方式二选一）
+
+> 前置说明：本项目**只在你的本机**，GitHub 上还没有。Makers 的导入页只列 GitHub 上
+> **已存在**的仓库，所以在推送完成前，那个列表里不可能出现 `mini-digital-employee`，
+> 刷新也没用。必须走完这一步，再回 Makers 页面。
+
+**方式一：一键脚本（推荐，含仓库存在性自检）**
+
+在项目目录打开 **Git Bash**，执行：
+
+```bash
+bash scripts/push_github.sh
+```
+
+脚本会先探测仓库是否可访问，没建好会直接告知，不会报一堆看不懂的错。
+若改过 `app/`、`config/`、`assets/`，用 `bash scripts/push_github.sh --bundle`
+（会先同步 `agents/_vendor` 再推送）。
+
+**方式二：手动命令**
 
 ```bash
 cd E:\新建文件夹\mini-digital-employee
