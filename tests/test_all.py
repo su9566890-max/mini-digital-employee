@@ -20,39 +20,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG_PATH = os.path.join(ROOT, "config", "employee_zhoubao.yaml")
 
 
-@pytest.fixture(scope="module")
-def cfg():
-    with open(CFG_PATH, "r", encoding="utf-8") as f:
-        c = yaml.safe_load(f)
-    registry.set_policy(c["tools_allowed"], c["limits"]["max_tool_retry"])
-    return c
-
-
-@pytest.fixture(scope="module")
-def data(tmp_path_factory):
-    from scripts.make_sample_data import build_all
-    d = tmp_path_factory.mktemp("sample")
-    root = {"ROOT": None}
-    # build_all 需要写入 sample_data 目录，这里直接生成到临时目录并复制到该结构
-    rows = __import__("scripts.make_sample_data", fromlist=["build_sales"]).build_sales()
-    import pandas as pd
-    from docx import Document
-    sales_p = os.path.join(str(d), "销售明细.xlsx")
-    pd.DataFrame(rows)[["日期", "门店", "品类", "销售额", "订单数"]].to_excel(sales_p, index=False)
-    doc = Document()
-    doc.add_heading("周会纪要", level=1)
-    doc.add_paragraph("福田店本周三因冷萃原料到货延迟，当日出现部分商品断货，销售额出现明显下滑。")
-    doc.add_paragraph("南山店在周末推出第二杯半价活动，南山店客流与销售额明显抬升。")
-    notes_p = os.path.join(str(d), "周会纪要.docx")
-    doc.save(notes_p)
-    return {"sales": sales_p, "notes": notes_p}
-
-
-@pytest.fixture
-def ws(tmp_path):
-    return str(tmp_path)
-
-
 def _form(data, **over):
     f = {"period": "2026 年第 44 周", "sales_file": data["sales"],
          "notes_file": data["notes"], "submitter": "张店长"}

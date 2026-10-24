@@ -48,26 +48,39 @@ python main.py init-data                                       # 生成模拟数
 
 ```
 mini-digital-employee/
-├─ main.py                       命令行入口（submit/resume/review/status/tools/demo）
+├─ main.py                       命令行入口（submit/resume/review/status/tools/demo/web）
 ├─ requirements.txt
+├─ edgeone.json                  EdgeOne Makers 部署声明（agents 目录与超时）
 ├─ config/employee_zhoubao.yaml  员工能力配置（职责/步骤/上限/工具白名单/质检规则）
 ├─ app/
 │  ├─ state.py                   状态机：流转控制、断点恢复、超限暂停
-│  ├─ events.py                  事件日志（events.jsonl）+ 原子写 state.json
-│  ├─ llm.py                     模型层：OpenAI 兼容 + 离线 Mock 兜底
+│  ├─ storage.py                 持久化抽象层：Disk / Memory / Makers 三后端
+│  ├─ events.py                  事件日志（薄封装，写入位置由 Storage 决定）
+│  ├─ llm.py                     模型层：OpenAI 兼容 + Makers 网关 + 离线 Mock 兜底
 │  ├─ qa.py                      自动质检 4 类检查 + 检验记录
 │  ├─ mcp_server.py              MCP 服务端（FastMCP）
 │  └─ tools/
 │     ├─ __init__.py             工具注册表：白名单/重试/越权拒绝/留痕
 │     └─ implementations.py      工具实现（5 个）
+├─ agents/
+│  ├─ zhoubao/index.py           EdgeOne Makers 云端入口（POST /zhoubao）
+│  └─ _vendor/                   核心代码打包副本（scripts/bundle_agents.py 同步）
+├─ assets/fonts/                 自带中文字体（Noto Sans CJK SC 子集，OFL 许可）
 ├─ scripts/
 │  ├─ make_sample_data.py        生成模拟业务数据
+│  ├─ bundle_agents.py           同步核心代码进 agents/_vendor
+│  ├─ web_smoke.py               Web 工单台端到端冒烟（8 步）
 │  └─ show_report.py             打印最新交付周报正文
+├─ docs/DEPLOY.md                上线手册（Git 推送路线，逐条命令）
 ├─ sample_data/                  模拟数据（无隐私、无真实商业信息）
 ├─ tasks/<task_id>/              任务运行态：state.json + events.jsonl + 图表
 ├─ deliveries/<task_id>/         交付成果：周报 + 图表 + 检验记录 + 事件日志
-└─ tests/test_all.py             14 条自测用例
+└─ tests/                        19 条自测用例（test_all.py 14 条 + test_storage.py 5 条）
 ```
+
+**一份代码，两地运行**：`TaskRunner` 只依赖 `storage.py` 的同步接口 ——
+本地写磁盘（`tasks/<id>/`），云端写平台 `context.store`（持久到 Blob，跨实例不丢），
+因此「断点恢复」在 Serverless 环境同样成立；Web 工单台与云端 Agent 跑的是同一套状态机与质检。
 
 ---
 
@@ -164,7 +177,7 @@ python main.py web --port 8080
 
 ---
 
-## 八、自测用例（14 条，全部通过）
+## 八、自测用例（19 条，全部通过）
 
 ```bash
 python -m pytest tests -q
@@ -189,17 +202,18 @@ python -m pytest tests -q
 
 ---
 
-## 九、按飞书教程部署上线（可选）
+## 九、部署上线（EdgeOne Makers，Git 推送路线）
 
-两条教程给出的是**线上 Agent 工程化路线**，本项目已本地跑通，后续接入按此路径：
+**已完成部署物料**，上线只需三步（详见 [docs/DEPLOY.md](docs/DEPLOY.md) 逐条命令）：
 
-1. **Fork Starter**：`https://github.com/openai/openai-agents-python`（教程中的 OpenAI Agents Starter[python]）
-2. **Makers 授权 GitHub 并绑定自己的 Fork**
-3. **配置环境变量**：`EMPLOYEE_LLM_API_KEY`（模型）、地图类 Key（若加 POI 工具）
-4. **用自然语言改造 Agent**：本项目的员工配置 `config/employee_zhoubao.yaml` 即"可被自然语言改写的能力文件"
-5. **本地体验**：`python main.py demo`
-6. **Push 触发部署**
-7. **新建部署并上线**；如需自定义域名，按教程 FreeDomain 申请 + Cloudflare DNS 指向
+1. `git push` 到 GitHub（需要你的账号）；
+2. Makers 控制台导入该仓库，自动构建部署，拿到 `https://<project>.edgeone.app`；
+3. 带 `Makers-Conversation-Id` 请求头 `POST /zhoubao` 即可发起任务，
+   模型走平台 AI Gateway（环境变量三件套，不设则自动落 Mock）。
+
+云端与本地共用同一状态机：任务状态落在平台 `context.store`（官方唯一支持
+Python 的持久化手段），事件流落在同一会话的消息历史 —— **断点恢复在线上真实成立**。
+
 
 ---
 
@@ -216,4 +230,5 @@ python -m pytest tests -q
 - Mock 模式下的叙事为模板化输出，**接真实模型后语言表达能力才完整**；所有数值始终来自工具统计，不含模型编造。
 - 异常检测使用"偏离该店日均值 ±40%"的统计规则，未做季节性/促销日程建模。
 - 交付格式为 Word；如需 PDF/邮件推送，只需新增一个工具并在白名单登记。
-- 尚未实现：多员工协同、并行任务队列、可视化工单界面。
+- 尚未实现：多员工协同、并行任务队列。
+- 云端部署的真实链路（context.request.body 解析、平台依赖校验等）按官方文档与模板源码对齐，**尚未用真实账号完成一次线上部署**，排查清单见 docs/DEPLOY.md 第八节。
