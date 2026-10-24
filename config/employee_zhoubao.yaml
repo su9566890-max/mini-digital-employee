@@ -1,0 +1,60 @@
+# 迷你数字员工 · 经营周报员工（场景 A）能力配置
+# 业务人员可直接修改本文件调整员工做法，无需改代码。
+employee:
+  name: 周报小锐
+  role: 经营周报员工
+  responsibility: >
+    读取门店销售数据与周会纪要，汇总分析经营情况，找出异常波动并结合会议纪要说明原因，
+    生成可直接使用的带图表经营周报（Word）。
+  steps:
+    - 校验任务表单与材料完整性（销售数据、周会纪要）
+    - 读取销售明细（Excel/CSV）
+    - 读取周会纪要（docx）
+    - 统计分析：整体/门店/品类汇总、环比、异常波动检测（偏离均值±40%）
+    - 结合纪要为异常撰写归因与结论
+    - 生成带图表的经营周报（Word）
+    - 自动质检（结构完整、数据一致、敏感词、格式）
+    - 提交人工审核，通过后交付
+  notices:
+    - 结论必须来自工具输出的真实数据，不得编造
+    - 图表必须使用中文标签
+    - 缺材料时暂停并提示发起人补充，不得猜测缺失内容
+
+# 模型配置：支持任意 OpenAI 兼容接口（DeepSeek / 通义千问 / GLM 等）
+# 不配置 API Key 时自动进入离线 Mock 模式（模板化叙事），全流程仍可跑通。
+model:
+  provider: openai_compatible
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-chat
+  api_key_env: EMPLOYEE_LLM_API_KEY
+  temperature: 0.3
+
+# 上限设置：轮次与时长超限时任务暂停转人工
+# 理由：单任务叙事+质检修正最多约 8 次调用，取 1.5 倍余量防死循环；
+# 300 秒可覆盖慢速接口的单次生成，避免任务无限挂起。
+limits:
+  max_llm_rounds: 12
+  max_llm_seconds: 300
+  max_qa_retry: 2
+  max_tool_retry: 2
+
+# 员工只能调用白名单内的工具，越权调用将被拒绝并留痕
+tools_allowed:
+  - validate_form
+  - read_sales_data
+  - read_meeting_notes
+  - analyze_sales
+  - generate_weekly_report
+
+# 自动质检规则（可增删——现场小变更演示点）
+qa_rules:
+  - structure_complete   # 周报须含：经营概况/异常波动分析/结论与建议
+  - data_consistency     # 周报中的总销售额必须与工具分析结果一致
+  - sensitive_words      # 敏感词检查
+  - format_check         # 图表≥1张且为中文标签、正文篇幅合理
+
+sensitive_words:
+  - 内幕
+  - 倒闭
+  - 裁员名单
+  - 走后门
